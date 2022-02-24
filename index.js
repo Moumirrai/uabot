@@ -62,7 +62,7 @@ mongoose.connect(process.env.MONGODB_SRV, {
     console.log('Error connecting to Database: ', err.message);
 });
 
-var checkForUpdates = new CronJob('0 */25 5,0-1 * * *', async function() {
+var checkForUpdates = new CronJob('0 */15 5,0-1 * * *', async function() {
     await news.getNews(client);
 });
 
