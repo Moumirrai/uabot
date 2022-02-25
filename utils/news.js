@@ -45,7 +45,6 @@ async function getNews(client) {
 
   if (newArticles.length === 0) {
     await saveStats(stats);
-    console.log("No new articles");
     return;
   }
 
@@ -131,7 +130,9 @@ async function saveStats(stats) {
     data.save().catch((err) => console.log(err));
     return;
   }
-  data.data = stats;
+  data.data.checks = (stats.checks + data.data.checks);
+  data.data.newFound = (stats.newFound + data.data.newFound);
+  data.data.messagesSent = (stats.messagesSent + data.data.messagesSent);
   data.save().catch((err) => console.log(err));
 }
 
