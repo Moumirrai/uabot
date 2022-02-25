@@ -26,7 +26,6 @@ client.on("ready", () => {
 client.on('messageCreate', async (msg) => {
     if (msg.content.startsWith(client.config.prefix) && !msg.author.bot && msg.guild) { //check if the message starts with the prefix and if the message is not from a bot
         const args = msg.content.slice(config.prefix.length).split(" ");
-        console.log(args)
         const command = args.shift().toLowerCase();
         const findcmd = client.commands.get(command) || client.aliases.get(command); //find command or alias
         
@@ -62,11 +61,12 @@ mongoose.connect(process.env.MONGODB_SRV, {
     console.log('Error connecting to Database: ', err.message);
 });
 
-var checkForUpdates = new CronJob('0 */15 5,0-1 * * *', async function() {
-    await news.getNews(client);
-});
 
-//create cronjob taht will run every 25 minutes from 5am to 1am
+//run function every 15 minuts from 5:00 to 7:00
+
+var checkForUpdates = new CronJob('0 */1 * * * *', function() {
+    news.getNews(client);
+}, null, true, 'Europe/Prague');
 
 checkForUpdates.start();
 

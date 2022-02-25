@@ -1,81 +1,102 @@
 require("dotenv").config();
-const NewsAPI = require("newsapi");
 const { MessageEmbed } = require("discord.js");
-const newsapi = new NewsAPI(process.env.NEWSAPI_KEY);
 const guildSettings = require("../models/guildSettings");
 const dataBase = require("../models/data");
+const hash = require('hash-it');
+const scrape = require('./scrape').scrape
 
 async function getNews(client) {
-  newsapi.v2
-    .everything({
-      q: "ukrajina",
-      language: "cs",
-    })
-    .then((response) => {
-      console.log(response.articles.length);
-      if (!response | !response.articles.length) return;
-      // get data from database
-      dataBase.findOne({ ID: "news" }, (err, dbresponse) => {
-        if (err) return console.log(err);
-        if (!dbresponse) {
-          dbresponse = new dataBase({
-            ID: "news",
-            data: response.articles,
-          });
-          dbresponse.save().catch((err) => console.log(err));
-          return;
-        }
-        const oldData = dbresponse.data;
-        const newData = response.articles;
-        const newArticles = newData.filter(
-          (article) =>
-            !oldData.some((oldArticle) => oldArticle.title === article.title)
-        );
-        if (newArticles.length) {
-          const mergedData = oldData.concat(newArticles);
-          dbresponse.data = mergedData;
-          dbresponse.save().catch((err) => console.log(err));
-          return sendNews(client, newArticles);
-        }
-      });
-    });
-}
+  let data = await scrape()
+  let newHashes = []
+  for (let i = 0; i < data.articles.length; i++) {
+    newHashes.push(hash(data.articles[i]));
+  }
 
-async function sendNews(client, newArticles) {
+  //get data from database
+  let dbRawData = await  dataBase.findOne({ ID: "news" })
+  if (!dbRawData) {
+    dbRawData = new dataBase({
+      ID: "news",
+      data: newHashes,
+    });
+    dbRawData.save().catch((err) => console.log(err));
+    return;
+  }
+  //create array of hashes from database
+  let oldHashes = dbRawData.data;
+
+  let newArticles = [];
+
+  for (let i = 0; i < newHashes.length; i++) {
+    if (!oldHashes.includes(newHashes[i])) {
+      newArticles.push(data.articles[i]);
+      oldHashes.push(newHashes[i]);
+    }
+  }
+
+  if (newArticles.length === 0) {
+    console.log("No new articles");
+    return;
+  }
+
+  dbRawData.data = oldHashes;
+  dbRawData.save().catch((err) => console.log(err));
+
+  newArticles.reverse();
+
+  const embedArray = await formatEmbeed(newArticles);
+
   var guildSet = await guildSettings.find();
   for (var i = 0; i < guildSet.length; i++) {
     var statusChannel = client.channels.cache.get(guildSet[i].statusChannelId);
     if (!statusChannel) return console.log("Status channel not found");
     // send every new article and add 2 seconds to the delay
-    for (var j = 0; j < newArticles.length; j++) {
-      //if article.content is more then 997 characters, cut it, keep the first 997 characters and add "..."
-      if (newArticles[j].title.length > 147) {
-        newArticles[j].title = newArticles[j].title.substring(0, 147) + "...";
-      }
-      if (newArticles[j].description.length > 147) {
-        newArticles[j].description =
-          newArticles[j].description.substring(0, 147) + "...";
-      }
-      if (newArticles[j].content.length > 997) {
-        newArticles[j].content =
-          newArticles[j].content.substring(0, 997) + "...";
-      }
-
-      var article = newArticles[j];
+    for (var j = 0; j < embedArray.length; j++) {
       statusChannel.send({
         embeds: [
-          new MessageEmbed()
-            .setTitle(article.title)
-            .setURL(article.url)
-            .setImage(article.urlToImage)
-            .setDescription(article.description)
-            .setColor("#000000")
-            .setTimestamp(article.publishedAt),
+          embedArray[j],
         ],
       });
       await sleep(2000);
     }
   }
+
+}
+
+async function formatEmbeed(articles) {
+  let embeds = [];
+  for (let i = 0; i < articles.length; i++) {
+    let embed = new MessageEmbed()
+    let description = "";
+    if (articles[i].title) embed.setTitle(articles[i].title);
+    if (articles[i].content) {
+      let rawcontent = articles[i].content.filter((item) => typeof item === "string");
+      //join all paragraphs with space
+      content = rawcontent.join(" ");
+      description += content;
+    }
+    if (articles[i].important) {
+      embed.setColor("#eed202");
+    } else {
+      embed.setColor("#000000");
+    }
+    if (articles[i].twitter) {
+      //split link on '?ref_src' and get first part
+      let link = articles[i].twitter.split("?ref_src")[0];
+      embed.addField("Links", `[Tweet](${link})`);
+    }
+    if (description.match(/^(http|https):\/\/[^ "]+$/)) {
+      let url = description.match(/^(http|https):\/\/[^ "]+$/);
+      embed.setURL(url[0]);
+    }
+    embed.setTimestamp(articles[i].timestamp);
+    if (description.startsWith("\n\n")) {
+      description = description.slice(2);
+    }
+    embed.setDescription(description);
+    embeds.push(embed);
+  }
+  return embeds;
 }
 
 // create sleep function
