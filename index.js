@@ -8,6 +8,13 @@ require('dotenv').config();
 var CronJob = require('cron').CronJob;
 const { MessageEmbed } = require('discord.js');
 const db = require("./utils/db.js");
+const express = require('express');
+const app = express();
+const port = 3000;
+
+app.get('/', (req, res) => res.send('Hello World!'));
+
+app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`));
 
 
 
