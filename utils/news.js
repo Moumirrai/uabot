@@ -2,11 +2,18 @@ require("dotenv").config();
 const { MessageEmbed } = require("discord.js");
 const guildSettings = require("../models/guildSettings");
 const dataBase = require("../models/data");
+const statiscics = require("../models/statistics");
 const hash = require('hash-it');
 const scrape = require('./scrape').scrape
 
 async function getNews(client) {
+  let stats = {
+    checks: 0,
+    newFound: 0,
+    messagesSent: 0,
+  }
   let data = await scrape()
+  stats.checks++;
   let newHashes = []
   for (let i = 0; i < data.articles.length; i++) {
     newHashes.push(hash(data.articles[i]));
@@ -20,6 +27,7 @@ async function getNews(client) {
       data: newHashes,
     });
     dbRawData.save().catch((err) => console.log(err));
+    await saveStats(stats);
     return;
   }
   //create array of hashes from database
@@ -29,12 +37,14 @@ async function getNews(client) {
 
   for (let i = 0; i < newHashes.length; i++) {
     if (!oldHashes.includes(newHashes[i])) {
+      stats.newFound++;
       newArticles.push(data.articles[i]);
       oldHashes.push(newHashes[i]);
     }
   }
 
   if (newArticles.length === 0) {
+    await saveStats(stats);
     console.log("No new articles");
     return;
   }
@@ -57,10 +67,11 @@ async function getNews(client) {
           embedArray[j],
         ],
       });
+      stats.messagesSent++;
       await sleep(2000);
     }
   }
-
+  await saveStats(stats);
 }
 
 async function formatEmbeed(articles) {
@@ -108,6 +119,20 @@ async function formatEmbeed(articles) {
 // create sleep function
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function saveStats(stats) {
+  let data = await  statiscics.findOne({ ID: "statistics" })
+  if (!data) {
+    data = new statiscics({
+      ID: "statistics",
+      data: stats,
+    });
+    data.save().catch((err) => console.log(err));
+    return;
+  }
+  data.data = stats;
+  data.save().catch((err) => console.log(err));
 }
 
 //export functions
