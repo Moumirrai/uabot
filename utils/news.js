@@ -85,6 +85,9 @@ async function formatEmbeed(articles) {
       let link = articles[i].twitter.split("?ref_src")[0];
       embed.addField("Links", `[Tweet](${link})`);
     }
+    if (articles[i].image) {
+      embed.setImage(articles[i].image)
+    }
     if (description.match(/^(http|https):\/\/[^ "]+$/)) {
       let url = description.match(/^(http|https):\/\/[^ "]+$/);
       embed.setURL(url[0]);

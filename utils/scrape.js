@@ -32,6 +32,12 @@ async function scrape() {
             selector: ".social-media__wrapper.twitter-media",
             attr: "data-url",
           },
+
+          image: {
+            selector: ".reportImage",
+            attr: "href",
+            convert: x => x.split('?v=')[0]
+          },
   
           important: {
             selector: ".important",
