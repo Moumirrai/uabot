@@ -93,7 +93,10 @@ async function formatEmbeed(articles) {
     if (description.startsWith("\n\n")) {
       description = description.slice(2);
     }
-    embed.setDescription(description);
+    //if description is not empty string
+    if (description) {
+      embed.setDescription(description);
+    }
     embeds.push(embed);
   }
   return embeds;

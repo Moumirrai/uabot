@@ -68,6 +68,15 @@ mongoose.connect(process.env.MONGODB_SRV, {
     console.log('Error connecting to Database: ', err.message);
 });
 
+//on process error
+process.on('uncaughtException', function (err) {
+    console.log(err);
+});
+
+process.on('unhandledRejection', function (err) {
+    console.log(err);
+});
+
 
 //run function every 15 minuts from 5:00 to 7:00
 
